@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>hello</title>
+</head>
+	<body>
+		<p>chatting with <span class="dudegal"></span></p>
+		<p>Your name is <span class="selfdudegal"></span></p>
+		<div>
+			<button class="refresh">refresh people</button>
+		</div>
+		<div class="container">
+			<div class="people-container">
+				
+			</div>
+			<div class="chat-container">
+
+			</div>
+			<div class="input">
+				<input type="text" class="text">
+				<button class="send">send</button>
+			</div>
+		</div>
+	</body>
+</html>
+
+
+<script>
+let person;
+function makeMsg(to, msg, pType) {
+	return {
+		to: to,
+		msg: msg,
+		payloadType: pType
+	}
+}
+
+let name = prompt("enter your name");
+document.querySelector(".selfdudegal").innerText = name;
+document.cookie = "name="+name;
+
+let socket = new WebSocket("ws://127.0.0.1:8080/ws");
+
+socket.addEventListener('message', function (event) {
+    console.log('Message from server ', event.data);
+    console.log(event.data)
+    let msg = JSON.parse(event.data)
+    console.log(msg)
+    if (msg.payloadType == "meta") {
+    	console.log("hello???")
+    	appendPeople(msg);
+    	return null;
+    }
+    appendChat(event.data, false);
+});
+
+socket.onclose = function(){
+	console.log("connection lost");
+	alert("connection lost");
+}
+
+
+//dom shit
+let chatBox = document.querySelector(".chat-container");
+
+function appendPeople(data) {
+	console.log(data)
+	if (data.people == null) {
+		return null;
+	}
+	let d = document.querySelector(".people-container")
+	d.innerHTML = "";
+	for (let i = 0; i<data.people.length; i++) {
+		if (data.people[i] != name) {
+			let newEl = document.createElement("span");
+			newEl.innerText = data.people[i];
+			newEl.classList.add("person");
+			d.appendChild(newEl);
+		}
+	}
+	afterPopulate()
+}
+
+function appendChat(val, self) {
+	let child = document.createElement("span")
+	if (self) {
+		child.innerText = val.value;
+		chatBox.appendChild(child)
+		socket.send(JSON.stringify(makeMsg(person, val.value)));
+		val.value = ""
+	} else {
+		let r = JSON.parse(val)
+		child.innerText = r.msg;
+		chatBox.appendChild(child);
+	}
+}
+function input() {
+	let text = document.querySelector(".text")
+	if (text.value == "") {
+		return null
+	}
+	appendChat(text, true);
+}
+
+function checkEnter(e) {
+	if (e.key == "Enter") {
+		input()
+	}
+}
+
+function sendWS(val) {
+	socket.send(val);
+}
+
+document.querySelector(".send").addEventListener("click", input)
+document.querySelector(".text").addEventListener("keypress", checkEnter)
+document.querySelector(".refresh").addEventListener("click", function(){
+	console.log("click got clicked")
+	socket.send(JSON.stringify(makeMsg("self", "people", "meta")))
+})
+function afterPopulate() {
+	let doc = document.querySelectorAll("span.person")
+	for (let i=0; i<doc.length; i++) {
+		doc[i].addEventListener("click", function(event) {
+			person = event.srcElement.innerText
+			let doc = document.querySelector(".dudegal");
+			let doc2 = document.querySelector(".selected-person")
+			if (doc2 != null){
+				doc2.classList.remove("selected-person");
+			}
+			doc.innerText = person;
+			event.srcElement.classList.add('selected-person');
+		})
+	}	
+}
+</script>
+
+<style>
+.container {
+	border: 1px solid black;
+	display: flex;
+	justify-content: center;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+}
+
+.people-container{
+	display: flex;
+	justify-content: center;
+	flex-direction: column;
+	height: 100px;
+	width: 150px;
+	margin-left: 50%;
+	border: 1px solid black;
+	overflow-y: scroll;
+}
+.person {
+	border: 1px solid black;
+}
+
+.person:hover {
+	background-color: yellow;
+}
+
+.selected-person {
+	background-color: yellow;
+}
+
+.chat-container {
+	display: flex;
+	flex-direction: column;
+	height: 300px;
+	width: 150px;
+	border: 1px solid black;
+	overflow-y: scroll;
+	margin-left: 50%;
+}
+
+.input {
+	margin-left: 50%;
+}
+</style>
