@@ -75,7 +75,7 @@ func sendPeopleOnHub() ([]byte, error) {
 	b, e := json.Marshal(peoplePayload{People: array,
 						 PayloadType: "meta"})
 	if e != nil {
-		return nil, errors.New("failed at encoding")  
+		return nil, errors.New("failed at encoding")
 	}
 	return b, nil
 }
@@ -131,6 +131,6 @@ func upgradeConn(w http.ResponseWriter, r *http.Request) (error) {
 	c := &client{conn:connection, name: cookie.Value, writeTo: make(chan []byte)}
 	appHub.register <- c
 	go c.readRoutine()
-	go c.writeRoutine()	
+	go c.writeRoutine()
 	return nil
 }
