@@ -1,18 +1,23 @@
 package main
 import ("fmt"
-		"encoding/json")
+		"sync")
+
+type safeClientMap struct {
+	clients map[string]*client
+	lock sync.RWMutex
+}
 
 type hub struct {
-	clients map[string]client
-	broadcast chan []byte 
+	clients *safeClientMap
+	broadcast chan *message  
 	register chan *client 
 	unregister chan *client
 }
 
 func newHub() hub {
 	return hub{
-		clients: make(map[string]client),
-		broadcast: make(chan []byte),
+		clients: &safeClientMap{ clients: make(map[string]*client), lock: sync.RWMutex{} },
+		broadcast: make(chan *message), 
 		register: make(chan *client),
 		unregister: make(chan *client),
 	}
@@ -22,22 +27,28 @@ func (h hub) run() {
 	for {
 		select {
 		case connStruct := <- h.register:
-			h.clients[connStruct.name] = *connStruct
+			h.clients.lock.Lock()
+			h.clients.clients[connStruct.name] = connStruct
+			h.clients.lock.Unlock()
+			
 		case connStruct := <- h.unregister:
-			_, ok := h.clients[connStruct.name]
+			h.clients.lock.Lock()
+			_, ok := h.clients.clients[connStruct.name]
 			if ok {
-				delete(h.clients, connStruct.name)
+				delete(h.clients.clients, connStruct.name)
 			}
+			h.clients.lock.Unlock()
+
 		case msg := <- h.broadcast:
-			var data *message = &message{} 
-			fmt.Println(string(msg), " got to the hub.")
-			json.Unmarshal(msg, data)
-			fmt.Println("msg meant for ", data.To)
-			ch, ok := h.clients[data.To]
+			h.clients.lock.RLock()
+			fmt.Println(*msg, " got to the hub.")
+			fmt.Println("msg meant for ", msg.To)
+			ch, ok := h.clients.clients[msg.To]
 			if ok {
 				ch.writeTo <- msg
-				fmt.Println("sent to", data.To)
+				fmt.Println("sent to", msg.To)
 			}
+			h.clients.lock.RUnlock()
 		}
 	}
 }
