@@ -3,6 +3,7 @@ import (
 	"os"
 	"fmt"
 	"log"
+	"flag"
 	"net/http"
 )
 
@@ -11,6 +12,7 @@ var appHub = newHub()
 var badResponse = []byte("This is an endpoint for WebSocket upgrade requests. You must call it in a way that supports the WebSocket protocol.")
 var secret = loadSecret()
 var addr = loadEnvVar("port")
+var testFlag = flag.Bool("test", true, "make false if you want jwt authentication")
 
 func loadEnvVar(v string) string {
 	s, b := os.LookupEnv(v)
@@ -76,7 +78,12 @@ func testRoutes() *http.ServeMux {
 
 func main() {
 	go appHub.run()
-	var mux *http.ServeMux = routes()
+	var mux *http.ServeMux
+	if *testFlag {
+		mux = testRoutes()
+	} else {
+		mux = routes()
+	}
 	fmt.Println("listening on address", addr)
 	err := http.ListenAndServe(addr, mux)
 	if err != nil {
