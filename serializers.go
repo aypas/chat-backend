@@ -7,10 +7,10 @@ type peoplePayload struct {
 }
 
 type message struct {
-	To          string 	 `json:"to"`
-	From 		string 	 `json:from`
-	Msg         string 	 `json:"msg"`
-	PayloadType string   `json:"payloadType"`
+	To          string 	 	`json:"to"`
+	From 		string 	 	`json:"from"`
+	Msg         interface{} `json:"msg"`
+	PayloadType string   	`json:"payloadType"`
 }
 
 func unmarshalMessage(b []byte) *message {

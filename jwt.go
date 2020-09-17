@@ -1,13 +1,14 @@
 package main
-import ("os"
-		"fmt"
-		"github.com/dgrijalva/jwt-go")
+import (
+	"os"
+	"github.com/dgrijalva/jwt-go"
+)
 
 type CustomClaim struct {
-	Exp float32 	`json:"exp"`
-	Jti string 	`json:"jti"`
-	Token_Type string `json:"token_type`
-	User_Id int 	`json:"user_id"`
+	User_Id 	int 		`json:"user_id"`
+	Exp 		float32 	`json:"exp"`
+	Jti 		string 		`json:"jti"`
+	Token_Type  string 		`json:"token_type"`
 }
 
 func loadSecret() []byte {
@@ -19,8 +20,7 @@ func loadSecret() []byte {
 }
 
 func validate(tokenS string) bool {
-	t, err := jwt.Parse(tokenS, func(token *jwt.Token) (interface{}, error) {
-		fmt.Println((*token).Method.Alg())
+	t, err := jwt.Parse(tokenS, func(_ *jwt.Token) (interface{}, error) {
 		return secret, nil
 	})
 	if err != nil {

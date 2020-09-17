@@ -1,13 +1,22 @@
 package main
-import ("fmt"
-		"log"
-		"net/http")
+import (
+	"os"
+	"fmt"
+	"log"
+	"net/http"
+)
 
 
 var appHub = newHub()
 var badResponse = []byte("This is an endpoint for WebSocket upgrade requests. You must call it in a way that supports the WebSocket protocol.")
 var secret = loadSecret()
-const addr = "0.0.0.0:8008"
+var addr = loadEnvVar("port")
+
+func loadEnvVar(v string) string {
+	s, b := os.LookupEnv(v)
+	if !b { panic("shit") }
+	return s
+}
 
 func originCheck(_ *http.Request) bool {
 	return true
@@ -43,8 +52,7 @@ func authMiddleware(fn http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "Invalid token format. There needs to one, and only one value set.", 400)
 			return
 		}
-		if id := validate(token[0]); !id {
-			fmt.Println(id)
+		if valid := validate(token[0]); !valid {
 			http.Error(w, "Token is invalid or expired", 401)
 			return
 		}
@@ -68,11 +76,10 @@ func testRoutes() *http.ServeMux {
 
 func main() {
 	go appHub.run()
-	var mux *http.ServeMux = testRoutes()
+	var mux *http.ServeMux = routes()
 	fmt.Println("listening on address", addr)
 	err := http.ListenAndServe(addr, mux)
 	if err != nil {
-		fmt.Println("ppop")
 		panic(err)
 	}
 }

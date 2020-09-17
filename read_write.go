@@ -1,11 +1,12 @@
 package main
-import ("fmt"
-		"time"
-		"bytes"
-		"errors"
-		"net/http"
-		"encoding/json"
-		"github.com/gorilla/websocket")
+import (
+	"fmt"
+	"time"
+	"errors"
+	"net/http"
+	"encoding/json"
+	"github.com/gorilla/websocket"
+)
 
 //the update logic is retarded...fix it
 
@@ -56,31 +57,27 @@ func (c *client) readRoutine() {
 			appHub.unregister <- c
 			return
 		}
-		msg = bytes.TrimSpace(bytes.Replace(msg, newline, space, -1))
-		fmt.Println("read msg")
-		fmt.Println(string(msg))
 		var msgObj *message = unmarshalMessage(msg)
 		if msgObj.To == msgObj.From {
 			c.writeTo <- msgObj
 			continue
-		} 
-		fmt.Println("dont")
+		}
 		appHub.broadcast <- msgObj
 	}
 }
 
 func sendPeopleOnHub() ([]byte, error) {
 	var people peoplePayload = peoplePayload{People: []string{}, PayloadType: "people"}
-	appHub.clients.lock.RLock()
-	for k, _ := range appHub.clients.clients {
-		fmt.Println(k)
-		people.People = append(people.People, k)
+	appHub.lock.RLock()
+	for key, _ := range appHub.clients {
+		people.People = append(people.People, key)
 	}
-	appHub.clients.lock.RUnlock()
+	appHub.lock.RUnlock()
 	b, e := json.Marshal(people)
 	if e != nil {
 		return nil, errors.New("failed at encoding")
 	}
+	fmt.Println(string(b))
 	return b, nil
 }
 
@@ -94,7 +91,6 @@ func (c *client) writeRoutine() {
 		fmt.Println("writeRouting stopped")
 	}()
 
-
 	for {
 		select {
 		case write, ok := <- c.writeTo:
@@ -105,14 +101,20 @@ func (c *client) writeRoutine() {
 				return
 			}
 
-			if write.PayloadType == "msg" {
-				byts, _ := json.Marshal(write)
-				c.conn.WriteMessage(websocket.TextMessage, byts)
-			} else { 
+			if write.PayloadType == "people" { 
 				//for now the only meta is people so lets keep it this way...
 				byts, _ := sendPeopleOnHub()
 				c.conn.WriteMessage(websocket.TextMessage, byts)
+				fmt.Println("people hit")
+				continue
 			}
+			byts, e := json.Marshal(write)
+			if e != nil {
+				fmt.Println("error on marshal")
+			}
+			fmt.Println(string(byts))
+			c.conn.WriteMessage(websocket.TextMessage, byts)
+			
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -123,9 +125,7 @@ func (c *client) writeRoutine() {
 }
 
 
-func upgradeConn(w http.ResponseWriter, r *http.Request) error {
-	fmt.Println("ws has been hit")
-	
+func upgradeConn(w http.ResponseWriter, r *http.Request) error {	
 	qs, ok := r.URL.Query()["id"]
 	if !ok {
 		http.Error(w, "Make sure query string values name and token are set.", 400)
